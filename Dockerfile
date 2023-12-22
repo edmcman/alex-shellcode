@@ -1,6 +1,6 @@
 FROM ubuntu:latest
 
-RUN apt-get -y update && apt-get install -y nasm nano binutils netcat strace
+RUN apt-get -y update && apt-get install -y nasm nano binutils netcat strace gdb
 
 COPY shell.asm .
 
