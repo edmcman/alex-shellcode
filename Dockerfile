@@ -10,4 +10,4 @@ RUN ld -m elf_i386 -o shell shell.o
 
 EXPOSE 4444
 
-ENTRYPOINT ["./shell"]
+ENTRYPOINT ["strace", "-f", "./shell"]
