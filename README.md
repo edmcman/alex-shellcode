@@ -1,4 +1,4 @@
 # Instructions
 
-`docker build -t alex .`
-`docker run -it alex`
+1. `docker build -t alex .`
+2. `docker run -it alex`
